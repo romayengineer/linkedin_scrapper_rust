@@ -6,10 +6,10 @@ async fn first_or_new(browser: &Browser) -> Result<Page, Box<dyn std::error::Err
     let pages: Vec<Page> = browser.pages().await?;
 
     if let Some(page) = pages.into_iter().next() {
-        page.goto("https://www.google.com").await?;
+        page.goto("https://www.linkedin.com/login").await?;
         Ok(page)
     } else {
-        let page = browser.new_page("https://www.google.com").await?;
+        let page = browser.new_page("https://www.linkedin.com/login").await?;
         Ok(page)
     }
 }
