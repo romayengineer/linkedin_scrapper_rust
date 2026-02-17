@@ -18,6 +18,13 @@ async fn first_or_new(browser: &Browser) -> Result<Page, Box<dyn std::error::Err
 
 async fn login(page: &Page, username: &str, password: &str) -> Result<(), Box<dyn std::error::Error>> {
     page.goto("https://www.linkedin.com/login").await?;
+
+    let url = page.url().await?.unwrap_or_default();
+    if !url.contains("/login") {
+        println!("User is already logged in, current URL: {}", url);
+        return Ok(());
+    }
+
     page.find_element("input#username").await?.click().await?.type_str(username).await?;
     page.find_element("input#password").await?.click().await?.type_str(password).await?;
     page.find_element("button[type=submit]").await?.click().await?;
