@@ -14,6 +14,14 @@ async fn first_or_new(browser: &Browser) -> Result<Page, Box<dyn std::error::Err
     }
 }
 
+async fn login(page: &Page, username: &str, password: &str) -> Result<(), Box<dyn std::error::Error>> {
+    page.goto("https://www.linkedin.com/login").await?;
+    page.find_element("input#username").await?.click().await?.type_str(username).await?;
+    page.find_element("input#password").await?.click().await?.type_str(password).await?;
+    page.find_element("button[type=submit]").await?.click().await?;
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
@@ -33,7 +41,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    let _page = first_or_new(&browser).await?;
+    let page = first_or_new(&browser).await?;
+
+    login(&page, "username", "password").await?;
 
     std::io::stdin().read_line(&mut String::new()).ok();
 
