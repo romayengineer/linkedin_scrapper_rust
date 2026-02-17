@@ -1,5 +1,5 @@
 use chromiumoxide::browser::BrowserConfigBuilder;
-use chromiumoxide::Browser;
+use chromiumoxide::{Browser, Page};
 use futures::StreamExt;
 
 #[tokio::main]
@@ -21,7 +21,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    let pages = browser.pages().await?;
+    let pages: Vec<Page> = browser.pages().await?;
+
     if let Some(page) = pages.into_iter().next() {
         page.goto("https://www.google.com").await?;
     }
