@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use chromiumoxide::browser::BrowserConfigBuilder;
 use chromiumoxide::Browser;
 use futures::StreamExt;
@@ -23,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    let page = browser.new_page("https://www.google.com").await?;
+    browser.new_page("https://www.google.com").await?;
 
     println!("Browser opened! Press Enter to close...");
     std::io::stdin().read_line(&mut String::new()).ok();

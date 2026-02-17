@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-chromiumoxide = "0.4"
+chromiumoxide = "0.8"
 futures = "0.3"
 tokio = { version = "1", features = ["full"] }
 tracing-subscriber = "0.3"
