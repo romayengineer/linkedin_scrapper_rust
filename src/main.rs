@@ -21,7 +21,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    browser.new_page("https://www.google.com").await?;
+    let pages = browser.pages().await?;
+    if let Some(page) = pages.into_iter().next() {
+        page.goto("https://www.google.com").await?;
+    }
 
     println!("Browser opened! Press Enter to close...");
     std::io::stdin().read_line(&mut String::new()).ok();
