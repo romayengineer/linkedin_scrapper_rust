@@ -31,6 +31,11 @@ async fn login(page: &Page, username: &str, password: &str) -> Result<(), Box<dy
     Ok(())
 }
 
+async fn search_company(page: &Page) -> Result<(), Box<dyn std::error::Error>> {
+    // TODO https://www.linkedin.com/search/results/companies/?keywords=aws&page=1
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     config::load();
