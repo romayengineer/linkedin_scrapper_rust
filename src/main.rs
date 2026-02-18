@@ -68,7 +68,7 @@ async fn get_company_urls(page: &Page, urls: &mut HashSet<String>) -> Result<(),
 }
 
 async fn search_company(browser: &Browser) -> Result<(), Box<dyn std::error::Error>> {
-    let (url_tx, url_rx) = mpsc::channel::<String>(100);
+    let (url_tx, url_rx) = mpsc::channel::<i32>(100);
     
     let mut page_pool: Vec<Arc<tokio::sync::Mutex<Page>>> = Vec::new();
     for _ in 0..2 {
@@ -86,11 +86,11 @@ async fn search_company(browser: &Browser) -> Result<(), Box<dyn std::error::Err
         let pool = page_pool.clone();
         workers.spawn(async move {
             loop {
-                let url = {
+                let page_index = {
                     let mut rx = rx.lock().await;
                     rx.recv().await
                 };
-                let url = match url {
+                let page_index = match page_index {
                     Some(u) => u,
                     None => break,
                 };
@@ -100,12 +100,13 @@ async fn search_company(browser: &Browser) -> Result<(), Box<dyn std::error::Err
                 };
                 {
                     let page = page.lock().await;
+                    let url = format!("https://www.linkedin.com/search/results/companies/?keywords=aws&page={}", page_index);
                     page.goto(&url).await.ok();
                     sleep(Duration::from_secs(2)).await;
                     let mut urls: HashSet<String> = HashSet::new();
                     get_company_urls(&page, &mut urls).await.ok();
                     for url in urls {
-                        println!("{}", url);
+                        println!("page {:03} url {}", page_index, url);
                     }
                 }
                 {
@@ -117,8 +118,7 @@ async fn search_company(browser: &Browser) -> Result<(), Box<dyn std::error::Err
     }
 
     for i in 1..11 {
-        let url = format!("https://www.linkedin.com/search/results/companies/?keywords=aws&page={}", i);
-        url_tx.send(url).await?;
+        url_tx.send(i).await?;
     }
     drop(url_tx);
     
