@@ -68,9 +68,8 @@ async fn get_company_urls(page: &Page, urls: &mut HashSet<String>) -> Result<(),
     Ok(())
 }
 
-async fn goto_search_get_urls(page: &Arc<Mutex<Page>>, page_index: i32) -> Result<(), Box<dyn Error>>
+async fn goto_search_get_urls(page: &Page, page_index: i32) -> Result<(), Box<dyn Error>>
 {
-    let page = page.lock().await;
     let url = format!("https://www.linkedin.com/search/results/companies/?keywords=aws&page={}", page_index);
     page.goto(&url).await.ok();
     sleep(Duration::from_secs(2)).await;
@@ -89,10 +88,10 @@ async fn search_company(browser: &Browser, workers_count: i32, pages_count: i32)
         url_rx.push(i);
     }
     
-    let mut page_pool: Vec<Arc<Mutex<Page>>> = Vec::new();
+    let mut page_pool: Vec<Page> = Vec::new();
     for _ in 0..workers_count {
         let page = browser.new_page("about:blank").await?;
-        page_pool.push(Arc::new(Mutex::new(page)));
+        page_pool.push(page);
     }
     
     let url_rx = Arc::new(Mutex::new(url_rx));
@@ -111,7 +110,7 @@ async fn search_company(browser: &Browser, workers_count: i32, pages_count: i32)
                     p.pop().unwrap()
                 };
                 // pull page from poll
-                let page: Arc<Mutex<Page>> = pool.lock().await.pop().unwrap();
+                let page: Page = pool.lock().await.pop().unwrap();
                 let _ = goto_search_get_urls(&page, page_index).await;
                 // push page back to poll
                 pool.lock().await.push(page);
