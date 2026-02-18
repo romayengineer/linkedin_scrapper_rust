@@ -40,10 +40,10 @@ async fn login(page: &Page, username: &str, password: &str) -> Result<(), Box<dy
     Ok(())
 }
 
-// async fn search_company(page: &Page) -> Result<(), Box<dyn std::error::Error>> {
-//     // TODO https://www.linkedin.com/search/results/companies/?keywords=aws&page=1
-//     Ok(())
-// }
+async fn search_company(page: &Page) -> Result<(), Box<dyn std::error::Error>> {
+    page.goto("https://www.linkedin.com/search/results/companies/?keywords=aws&page=1").await?;
+    Ok(())
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -70,6 +70,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     close_new_tabs(&browser).await?;
 
     login(&page, &config::username(), &config::password()).await?;
+
+    search_company(&page).await?;
 
     std::io::stdin().read_line(&mut String::new()).ok();
 
