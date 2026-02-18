@@ -4,6 +4,7 @@ pub struct Config {
     pub username: String,
     pub password: String,
     pub workers: i32,
+    pub pages: i32,
 }
 
 pub fn load() -> Config {
@@ -16,6 +17,10 @@ pub fn load() -> Config {
         workers: env::var("WORKERS")
             .ok()
             .and_then(|s| s.parse().ok())
-            .unwrap_or(4)
+            .unwrap_or(4),
+        pages: env::var("PAGES")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(20)
     }
 }

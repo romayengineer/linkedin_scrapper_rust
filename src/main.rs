@@ -67,7 +67,7 @@ async fn get_company_urls(page: &Page, urls: &mut HashSet<String>) -> Result<(),
     Ok(())
 }
 
-async fn search_company(browser: &Browser, workers_count: i32) -> Result<(), Box<dyn std::error::Error>> {
+async fn search_company(browser: &Browser, workers_count: i32, pages_count: i32) -> Result<(), Box<dyn std::error::Error>> {
     let (url_tx, url_rx) = mpsc::channel::<i32>(100);
     
     let mut page_pool: Vec<Arc<tokio::sync::Mutex<Page>>> = Vec::new();
@@ -117,7 +117,7 @@ async fn search_company(browser: &Browser, workers_count: i32) -> Result<(), Box
         });
     }
 
-    for i in 1..21 {
+    for i in 1..(pages_count + 1) {
         url_tx.send(i).await?;
     }
     drop(url_tx);
@@ -153,7 +153,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     login(&page, &config.username, &config.password).await?;
 
-    search_company(&browser, config.workers).await?;
+    search_company(&browser, config.workers, config.pages).await?;
 
     // wait for user press key in terminal
     // std::io::stdin().read_line(&mut String::new()).ok();
