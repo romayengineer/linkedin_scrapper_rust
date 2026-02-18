@@ -4,6 +4,7 @@ use futures::StreamExt;
 use std::collections::HashSet;
 use std::error::Error;
 use std::sync::Arc;
+use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 use tokio::task::JoinSet;
 use tokio::time::{sleep, Duration};
@@ -82,38 +83,40 @@ async fn goto_search_get_urls(page: &Page, page_index: i32) -> Result<(), Box<dy
 }
 
 async fn search_company(browser: &Browser, workers_count: i32, pages_count: i32) -> Result<(), Box<dyn Error>> {
+    let (page_tx, page_rx) = mpsc::channel::<Page>((workers_count + 1) as usize);
 
     let mut url_rx: Vec<i32> = Vec::new();
     for i in 1..(pages_count + 1) {
         url_rx.push(i);
     }
-    
-    let mut page_pool: Vec<Page> = Vec::new();
+
     for _ in 0..workers_count {
         let page = browser.new_page("about:blank").await?;
-        page_pool.push(page);
+        page_tx.send(page).await?;
     }
     
     let url_rx = Arc::new(Mutex::new(url_rx));
-    let page_pool = Arc::new(Mutex::new(page_pool));
+    let page_rx = Arc::new(Mutex::new(page_rx));
+    let page_tx = Arc::new(Mutex::new(page_tx));
     
     let mut workers = JoinSet::new();
     
-    for _ in 0..workers_count {
-        let rx = url_rx.clone();
-        let pool = page_pool.clone();
+    for i in 0..(workers_count + 1) {
+        let url_rx_c = url_rx.clone();
+        let page_rx_c = page_rx.clone();
+        let page_tx_c = page_tx.clone();
         workers.spawn(async move {
             loop {
+                let page: Page = page_rx_c.lock().await.recv().await.unwrap();
+                println!("Worker {}", i);
                 let page_index: i32 = {
-                    let mut p = rx.lock().await;
+                    let mut p = url_rx_c.lock().await;
                     if p.is_empty() { break; }
                     p.pop().unwrap()
                 };
-                // pull page from poll
-                let page: Page = pool.lock().await.pop().unwrap();
                 let _ = goto_search_get_urls(&page, page_index).await;
                 // push page back to poll
-                pool.lock().await.push(page);
+                let _ = page_tx_c.lock().await.send(page).await;
             }
         });
     }
