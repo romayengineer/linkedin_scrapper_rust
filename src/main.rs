@@ -4,14 +4,16 @@ use futures::StreamExt;
 
 mod config;
 
+async fn is_url_same(page: &Page, url: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    let page_url = page.url().await?.unwrap_or_default();
+    Ok(page_url.as_str() == url)
+}
+
 async fn close_new_tabs(browser: &Browser) -> Result<(), Box<dyn std::error::Error>> {
     let pages: Vec<Page> = browser.pages().await?;
-    let new_tab_page_url = "chrome://new-tab-page/";
 
     for page in pages {
-        let page_url = page.url().await?.unwrap_or_default();
-        let page_str = page_url.as_str();
-        if page_str == new_tab_page_url {
+        if is_url_same(&page, "chrome://new-tab-page/").await? {
             page.close().await?;
         }
     }
@@ -20,12 +22,16 @@ async fn close_new_tabs(browser: &Browser) -> Result<(), Box<dyn std::error::Err
 }
 
 async fn login(page: &Page, username: &str, password: &str) -> Result<(), Box<dyn std::error::Error>> {
+    if is_url_same(&page, "https://www.linkedin.com/feed/").await? {
+        println!("User is already logged in");
+        return Ok(())
+    }
+
     page.goto("https://www.linkedin.com/login").await?;
 
-    let url = page.url().await?.unwrap_or_default();
-    if !url.contains("/login") {
-        println!("User is already logged in, current URL: {}", url);
-        return Ok(());
+    if is_url_same(&page, "https://www.linkedin.com/feed/").await? {
+        println!("User is already logged in");
+        return Ok(())
     }
 
     page.find_element("input#username").await?.click().await?.type_str(username).await?;
