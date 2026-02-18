@@ -46,11 +46,24 @@ async fn login(page: &Page, username: &str, password: &str) -> Result<(), Box<dy
     Ok(())
 }
 
+async fn print_urls(page: &Page) -> Result<(), Box<dyn std::error::Error>> {
+    let links = page.find_elements("a").await?;
+    for link in links {
+        if let Ok(Some(href)) = link.attribute("href").await {
+            if href.starts_with("https://www.linkedin.com/company/") {
+                println!("{}", href);
+            }
+        }
+    }
+    Ok(())
+}
+
 async fn search_company(page: &Page) -> Result<(), Box<dyn std::error::Error>> {
     for i in 1..11 {
         let url = format!("https://www.linkedin.com/search/results/companies/?keywords=aws&page={:?}", i);
         page.goto(url).await?;
         sleep(Duration::from_secs(2)).await;
+        print_urls(&page).await?;
     }
     Ok(())
 }
