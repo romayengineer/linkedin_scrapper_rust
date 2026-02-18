@@ -4,7 +4,6 @@ use futures::StreamExt;
 use std::collections::HashSet;
 use std::error::Error;
 use std::sync::Arc;
-use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 use tokio::task::JoinSet;
 use tokio::time::{sleep, Duration};
@@ -84,7 +83,11 @@ async fn goto_search_get_urls(page: &Arc<Mutex<Page>>, page_index: i32) -> Resul
 }
 
 async fn search_company(browser: &Browser, workers_count: i32, pages_count: i32) -> Result<(), Box<dyn Error>> {
-    let (url_tx, url_rx) = mpsc::channel::<i32>(100);
+
+    let mut url_rx: Vec<i32> = Vec::new();
+    for i in 1..(pages_count + 1) {
+        url_rx.push(i);
+    }
     
     let mut page_pool: Vec<Arc<Mutex<Page>>> = Vec::new();
     for _ in 0..workers_count {
@@ -103,10 +106,9 @@ async fn search_company(browser: &Browser, workers_count: i32, pages_count: i32)
         workers.spawn(async move {
             loop {
                 let page_index: i32 = {
-                    match rx.lock().await.recv().await {
-                        Some(u) => u,
-                        None => break,
-                    }
+                    let mut p = rx.lock().await;
+                    if p.is_empty() { break; }
+                    p.pop().unwrap()
                 };
                 // pull page from poll
                 let page: Arc<Mutex<Page>> = pool.lock().await.pop().unwrap();
@@ -116,11 +118,6 @@ async fn search_company(browser: &Browser, workers_count: i32, pages_count: i32)
             }
         });
     }
-
-    for i in 1..(pages_count + 1) {
-        url_tx.send(i).await?;
-    }
-    drop(url_tx);
     
     while workers.join_next().await.is_some() {}
     
