@@ -46,7 +46,10 @@ async fn login(page: &Page, username: &str, password: &str) -> Result<(), Box<dy
 }
 
 async fn search_company(page: &Page) -> Result<(), Box<dyn std::error::Error>> {
-    page.goto("https://www.linkedin.com/search/results/companies/?keywords=aws&page=1").await?;
+    for i in 1..11 {
+        let url = format!("https://www.linkedin.com/search/results/companies/?keywords=aws&page={:?}", i);
+        page.goto(url).await?;
+    }
     Ok(())
 }
 
