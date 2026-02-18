@@ -1,13 +1,21 @@
 use std::env;
 
-pub fn load() {
+pub struct Config {
+    pub username: String,
+    pub password: String,
+    pub workers: i32,
+}
+
+pub fn load() -> Config {
     dotenv::dotenv().ok();
-}
-
-pub fn username() -> String {
-    env::var("LINKEDIN_USERNAME").expect("LINKEDIN_USERNAME must be set")
-}
-
-pub fn password() -> String {
-    env::var("LINKEDIN_PASSWORD").expect("LINKEDIN_PASSWORD must be set")
+    Config {
+        username: env::var("USERNAME")
+            .expect("USERNAME must be set"),
+        password: env::var("PASSWORD")
+            .expect("PASSWORD must be set"),
+        workers: env::var("WORKERS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(4)
+    }
 }

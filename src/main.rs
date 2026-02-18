@@ -67,11 +67,11 @@ async fn get_company_urls(page: &Page, urls: &mut HashSet<String>) -> Result<(),
     Ok(())
 }
 
-async fn search_company(browser: &Browser) -> Result<(), Box<dyn std::error::Error>> {
+async fn search_company(browser: &Browser, workers_count: i32) -> Result<(), Box<dyn std::error::Error>> {
     let (url_tx, url_rx) = mpsc::channel::<i32>(100);
     
     let mut page_pool: Vec<Arc<tokio::sync::Mutex<Page>>> = Vec::new();
-    for _ in 0..2 {
+    for _ in 0..workers_count {
         let page = browser.new_page("about:blank").await?;
         page_pool.push(Arc::new(tokio::sync::Mutex::new(page)));
     }
@@ -81,7 +81,7 @@ async fn search_company(browser: &Browser) -> Result<(), Box<dyn std::error::Err
     
     let mut workers = JoinSet::new();
     
-    for _ in 0..2 {
+    for _ in 0..workers_count {
         let rx = url_rx.clone();
         let pool = page_pool.clone();
         workers.spawn(async move {
@@ -117,7 +117,7 @@ async fn search_company(browser: &Browser) -> Result<(), Box<dyn std::error::Err
         });
     }
 
-    for i in 1..11 {
+    for i in 1..21 {
         url_tx.send(i).await?;
     }
     drop(url_tx);
@@ -129,7 +129,7 @@ async fn search_company(browser: &Browser) -> Result<(), Box<dyn std::error::Err
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    config::load();
+    let config = config::load();
     tracing_subscriber::fmt::init();
 
     let (mut browser, mut handler) = Browser::launch(
@@ -151,9 +151,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     close_new_tabs(&browser).await?;
 
-    login(&page, &config::username(), &config::password()).await?;
+    login(&page, &config.username, &config.password).await?;
 
-    search_company(&browser).await?;
+    search_company(&browser, config.workers).await?;
 
     // wait for user press key in terminal
     // std::io::stdin().read_line(&mut String::new()).ok();
