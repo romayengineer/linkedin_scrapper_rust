@@ -1,9 +1,12 @@
 use chromiumoxide::browser::BrowserConfigBuilder;
 use chromiumoxide::{Browser, Page};
 use futures::StreamExt;
+use tokio::sync::mpsc;
+use tokio::task::JoinSet;
 use tokio::time::{sleep, Duration};
 use url::Url;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 mod config;
 
@@ -64,17 +67,63 @@ async fn get_company_urls(page: &Page, urls: &mut HashSet<String>) -> Result<(),
     Ok(())
 }
 
-async fn search_company(page: &Page) -> Result<(), Box<dyn std::error::Error>> {
-    for i in 1..11 {
-        let url = format!("https://www.linkedin.com/search/results/companies/?keywords=aws&page={:?}", i);
-        page.goto(url).await?;
-        sleep(Duration::from_secs(2)).await;
-        let mut urls: HashSet<String> = HashSet::new();
-        get_company_urls(&page, &mut urls).await?;
-        for url in urls {
-            println!("page {:?} url {:?}", i, url);
-        }
+async fn search_company(browser: &Browser) -> Result<(), Box<dyn std::error::Error>> {
+    let (url_tx, url_rx) = mpsc::channel::<String>(100);
+    
+    let mut page_pool: Vec<Arc<tokio::sync::Mutex<Page>>> = Vec::new();
+    for _ in 0..2 {
+        let page = browser.new_page("about:blank").await?;
+        page_pool.push(Arc::new(tokio::sync::Mutex::new(page)));
     }
+    
+    let page_pool = Arc::new(tokio::sync::Mutex::new(page_pool));
+    let url_rx = Arc::new(tokio::sync::Mutex::new(url_rx));
+    
+    let mut workers = JoinSet::new();
+    
+    for _ in 0..2 {
+        let rx = url_rx.clone();
+        let pool = page_pool.clone();
+        workers.spawn(async move {
+            loop {
+                let url = {
+                    let mut rx = rx.lock().await;
+                    rx.recv().await
+                };
+                let url = match url {
+                    Some(u) => u,
+                    None => break,
+                };
+                let page = {
+                    let mut pool = pool.lock().await;
+                    pool.pop().unwrap()
+                };
+                {
+                    let page = page.lock().await;
+                    page.goto(&url).await.ok();
+                    sleep(Duration::from_secs(2)).await;
+                    let mut urls: HashSet<String> = HashSet::new();
+                    get_company_urls(&page, &mut urls).await.ok();
+                    for url in urls {
+                        println!("{}", url);
+                    }
+                }
+                {
+                    let mut pool = pool.lock().await;
+                    pool.push(page);
+                }
+            }
+        });
+    }
+
+    for i in 1..11 {
+        let url = format!("https://www.linkedin.com/search/results/companies/?keywords=aws&page={}", i);
+        url_tx.send(url).await?;
+    }
+    drop(url_tx);
+    
+    while workers.join_next().await.is_some() {}
+    
     Ok(())
 }
 
@@ -104,7 +153,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     login(&page, &config::username(), &config::password()).await?;
 
-    search_company(&page).await?;
+    search_company(&browser).await?;
 
     // wait for user press key in terminal
     // std::io::stdin().read_line(&mut String::new()).ok();
