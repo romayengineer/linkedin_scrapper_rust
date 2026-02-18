@@ -69,6 +69,20 @@ async fn get_company_urls(page: &Page, urls: &mut HashSet<String>) -> Result<(),
     Ok(())
 }
 
+async fn goto_search_get_urls(page: &Arc<Mutex<Page>>, page_index: i32) -> Result<(), Box<dyn Error>>
+{
+    let page = page.lock().await;
+    let url = format!("https://www.linkedin.com/search/results/companies/?keywords=aws&page={}", page_index);
+    page.goto(&url).await.ok();
+    sleep(Duration::from_secs(2)).await;
+    let mut urls: HashSet<String> = HashSet::new();
+    get_company_urls(&page, &mut urls).await.ok();
+    for url in urls {
+        println!("page {:03} url {}", page_index, url);
+    }
+    Ok(())
+}
+
 async fn search_company(browser: &Browser, workers_count: i32, pages_count: i32) -> Result<(), Box<dyn Error>> {
     let (url_tx, url_rx) = mpsc::channel::<i32>(100);
     
@@ -100,17 +114,7 @@ async fn search_company(browser: &Browser, workers_count: i32, pages_count: i32)
                     let mut pool = pool.lock().await;
                     pool.pop().unwrap()
                 };
-                {
-                    let page = page.lock().await;
-                    let url = format!("https://www.linkedin.com/search/results/companies/?keywords=aws&page={}", page_index);
-                    page.goto(&url).await.ok();
-                    sleep(Duration::from_secs(2)).await;
-                    let mut urls: HashSet<String> = HashSet::new();
-                    get_company_urls(&page, &mut urls).await.ok();
-                    for url in urls {
-                        println!("page {:03} url {}", page_index, url);
-                    }
-                }
+                let _ = goto_search_get_urls(&page, page_index).await;
                 {
                     let mut pool = pool.lock().await;
                     pool.push(page);
