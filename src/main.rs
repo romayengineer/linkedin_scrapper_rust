@@ -4,16 +4,19 @@ use futures::StreamExt;
 
 mod config;
 
-async fn first_or_new(browser: &Browser) -> Result<Page, Box<dyn std::error::Error>> {
+async fn close_new_tabs(browser: &Browser) -> Result<(), Box<dyn std::error::Error>> {
     let pages: Vec<Page> = browser.pages().await?;
+    let new_tab_page_url = "chrome://new-tab-page/";
 
-    if let Some(page) = pages.into_iter().next() {
-        page.goto("https://www.linkedin.com/login").await?;
-        Ok(page)
-    } else {
-        let page = browser.new_page("https://www.linkedin.com/login").await?;
-        Ok(page)
+    for page in pages {
+        let page_url = page.url().await?.unwrap_or_default();
+        let page_str = page_url.as_str();
+        if page_str == new_tab_page_url {
+            page.close().await?;
+        }
     }
+
+    Ok(())
 }
 
 async fn login(page: &Page, username: &str, password: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -31,10 +34,10 @@ async fn login(page: &Page, username: &str, password: &str) -> Result<(), Box<dy
     Ok(())
 }
 
-async fn search_company(page: &Page) -> Result<(), Box<dyn std::error::Error>> {
-    // TODO https://www.linkedin.com/search/results/companies/?keywords=aws&page=1
-    Ok(())
-}
+// async fn search_company(page: &Page) -> Result<(), Box<dyn std::error::Error>> {
+//     // TODO https://www.linkedin.com/search/results/companies/?keywords=aws&page=1
+//     Ok(())
+// }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -56,7 +59,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    let page = first_or_new(&browser).await?;
+    let page = browser.new_page("https://www.linkedin.com").await?;
+
+    close_new_tabs(&browser).await?;
 
     login(&page, &config::username(), &config::password()).await?;
 
