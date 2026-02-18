@@ -55,7 +55,9 @@ async fn print_urls(page: &Page) -> Result<(), Box<dyn std::error::Error>> {
         if let Ok(Some(href)) = link.attribute("href").await {
             if href.starts_with("https://www.linkedin.com/company/") {
                 let parsed = Url::parse(&href)?;
-                let clean_url = format!("{}://{}{}", parsed.scheme(), parsed.host_str().unwrap_or_default(), parsed.path());
+                let path = parsed.path();
+                let first_two = format!("/{}", path.split('/').skip(1).take(2).collect::<Vec<&str>>().join("/"));
+                let clean_url = format!("{}://{}{}", parsed.scheme(), parsed.host_str().unwrap_or_default(), first_two);
                 if !urls.contains(&clean_url) {
                     println!("{}", clean_url);
                     urls.insert(clean_url.clone());
