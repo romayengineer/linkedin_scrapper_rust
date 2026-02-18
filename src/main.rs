@@ -21,6 +21,11 @@ async fn close_new_tabs(browser: &Browser) -> Result<(), Box<dyn std::error::Err
     Ok(())
 }
 
+async fn element_fill(page: &Page, selector: &str, value: &str) -> Result<(), Box<dyn std::error::Error>> {
+    page.find_element(selector).await?.click().await?.type_str(value).await?;
+    Ok(())
+}
+
 async fn login(page: &Page, username: &str, password: &str) -> Result<(), Box<dyn std::error::Error>> {
     if is_url_same(&page, "https://www.linkedin.com/feed/").await? {
         println!("User is already logged in");
@@ -34,8 +39,8 @@ async fn login(page: &Page, username: &str, password: &str) -> Result<(), Box<dy
         return Ok(())
     }
 
-    page.find_element("input#username").await?.click().await?.type_str(username).await?;
-    page.find_element("input#password").await?.click().await?.type_str(password).await?;
+    element_fill(&page, "input#username", &username).await?;
+    element_fill(&page, "input#password", &password).await?;
     page.find_element("button[type=submit]").await?.click().await?;
     Ok(())
 }
