@@ -48,9 +48,8 @@ async fn login(page: &Page, username: &str, password: &str) -> Result<(), Box<dy
     Ok(())
 }
 
-async fn print_urls(page: &Page) -> Result<(), Box<dyn std::error::Error>> {
+async fn get_company_urls(page: &Page, urls: &mut HashSet<String>) -> Result<(), Box<dyn std::error::Error>> {
     let links = page.find_elements("a").await?;
-    let mut urls: HashSet<String> = HashSet::new();
     for link in links {
         if let Ok(Some(href)) = link.attribute("href").await {
             if href.starts_with("https://www.linkedin.com/company/") {
@@ -58,10 +57,7 @@ async fn print_urls(page: &Page) -> Result<(), Box<dyn std::error::Error>> {
                 let path = parsed.path();
                 let first_two = format!("/{}", path.split('/').skip(1).take(2).collect::<Vec<&str>>().join("/"));
                 let clean_url = format!("{}://{}{}", parsed.scheme(), parsed.host_str().unwrap_or_default(), first_two);
-                if !urls.contains(&clean_url) {
-                    println!("{}", clean_url);
-                    urls.insert(clean_url.clone());
-                }
+                urls.insert(clean_url.clone());
             }
         }
     }
@@ -73,7 +69,11 @@ async fn search_company(page: &Page) -> Result<(), Box<dyn std::error::Error>> {
         let url = format!("https://www.linkedin.com/search/results/companies/?keywords=aws&page={:?}", i);
         page.goto(url).await?;
         sleep(Duration::from_secs(2)).await;
-        print_urls(&page).await?;
+        let mut urls: HashSet<String> = HashSet::new();
+        get_company_urls(&page, &mut urls).await?;
+        for url in urls {
+            println!("page {:?} url {:?}", i, url);
+        }
     }
     Ok(())
 }
