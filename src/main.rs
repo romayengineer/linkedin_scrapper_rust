@@ -1,21 +1,23 @@
-use chromiumoxide::browser::BrowserConfigBuilder;
 use chromiumoxide::{Browser, Page};
+use chromiumoxide::browser::BrowserConfigBuilder;
 use futures::StreamExt;
+use std::collections::HashSet;
+use std::error::Error;
+use std::sync::Arc;
 use tokio::sync::mpsc;
+use tokio::sync::Mutex;
 use tokio::task::JoinSet;
 use tokio::time::{sleep, Duration};
 use url::Url;
-use std::collections::HashSet;
-use std::sync::Arc;
 
 mod config;
 
-async fn is_url_same(page: &Page, url: &str) -> Result<bool, Box<dyn std::error::Error>> {
+async fn is_url_same(page: &Page, url: &str) -> Result<bool, Box<dyn Error>> {
     let page_url = page.url().await?.unwrap_or_default();
     Ok(page_url.as_str() == url)
 }
 
-async fn close_new_tabs(browser: &Browser) -> Result<(), Box<dyn std::error::Error>> {
+async fn close_new_tabs(browser: &Browser) -> Result<(), Box<dyn Error>> {
     let pages: Vec<Page> = browser.pages().await?;
 
     for page in pages {
@@ -27,12 +29,12 @@ async fn close_new_tabs(browser: &Browser) -> Result<(), Box<dyn std::error::Err
     Ok(())
 }
 
-async fn element_fill(page: &Page, selector: &str, value: &str) -> Result<(), Box<dyn std::error::Error>> {
+async fn element_fill(page: &Page, selector: &str, value: &str) -> Result<(), Box<dyn Error>> {
     page.find_element(selector).await?.click().await?.type_str(value).await?;
     Ok(())
 }
 
-async fn login(page: &Page, username: &str, password: &str) -> Result<(), Box<dyn std::error::Error>> {
+async fn login(page: &Page, username: &str, password: &str) -> Result<(), Box<dyn Error>> {
     if is_url_same(&page, "https://www.linkedin.com/feed/").await? {
         println!("User is already logged in");
         return Ok(())
@@ -51,7 +53,7 @@ async fn login(page: &Page, username: &str, password: &str) -> Result<(), Box<dy
     Ok(())
 }
 
-async fn get_company_urls(page: &Page, urls: &mut HashSet<String>) -> Result<(), Box<dyn std::error::Error>> {
+async fn get_company_urls(page: &Page, urls: &mut HashSet<String>) -> Result<(), Box<dyn Error>> {
     let links = page.find_elements("a").await?;
     for link in links {
         if let Ok(Some(href)) = link.attribute("href").await {
@@ -67,17 +69,17 @@ async fn get_company_urls(page: &Page, urls: &mut HashSet<String>) -> Result<(),
     Ok(())
 }
 
-async fn search_company(browser: &Browser, workers_count: i32, pages_count: i32) -> Result<(), Box<dyn std::error::Error>> {
+async fn search_company(browser: &Browser, workers_count: i32, pages_count: i32) -> Result<(), Box<dyn Error>> {
     let (url_tx, url_rx) = mpsc::channel::<i32>(100);
     
-    let mut page_pool: Vec<Arc<tokio::sync::Mutex<Page>>> = Vec::new();
+    let mut page_pool: Vec<Arc<Mutex<Page>>> = Vec::new();
     for _ in 0..workers_count {
         let page = browser.new_page("about:blank").await?;
-        page_pool.push(Arc::new(tokio::sync::Mutex::new(page)));
+        page_pool.push(Arc::new(Mutex::new(page)));
     }
     
-    let page_pool = Arc::new(tokio::sync::Mutex::new(page_pool));
-    let url_rx = Arc::new(tokio::sync::Mutex::new(url_rx));
+    let page_pool = Arc::new(Mutex::new(page_pool));
+    let url_rx = Arc::new(Mutex::new(url_rx));
     
     let mut workers = JoinSet::new();
     
@@ -128,7 +130,7 @@ async fn search_company(browser: &Browser, workers_count: i32, pages_count: i32)
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn Error>> {
     let config = config::load();
     tracing_subscriber::fmt::init();
 
