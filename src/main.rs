@@ -2,6 +2,7 @@ use chromiumoxide::browser::BrowserConfigBuilder;
 use chromiumoxide::{Browser, Page};
 use futures::StreamExt;
 use tokio::time::{sleep, Duration};
+use url::Url;
 
 mod config;
 
@@ -51,7 +52,9 @@ async fn print_urls(page: &Page) -> Result<(), Box<dyn std::error::Error>> {
     for link in links {
         if let Ok(Some(href)) = link.attribute("href").await {
             if href.starts_with("https://www.linkedin.com/company/") {
-                println!("{}", href);
+                let parsed = Url::parse(&href)?;
+                let clean_url = format!("{}://{}{}", parsed.scheme(), parsed.host_str().unwrap_or_default(), parsed.path());
+                println!("{}", clean_url);
             }
         }
     }
