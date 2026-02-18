@@ -106,10 +106,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     search_company(&page).await?;
 
-    std::io::stdin().read_line(&mut String::new()).ok();
+    // wait for user press key in terminal
+    // std::io::stdin().read_line(&mut String::new()).ok();
 
     browser.close().await?;
     handle.await?;
+
+    // wait for browser to close
+    browser.wait().await?;
 
     Ok(())
 }
