@@ -1,6 +1,7 @@
 use chromiumoxide::browser::BrowserConfigBuilder;
 use chromiumoxide::{Browser, Page};
 use futures::StreamExt;
+use tokio::time::{sleep, Duration};
 
 mod config;
 
@@ -49,6 +50,7 @@ async fn search_company(page: &Page) -> Result<(), Box<dyn std::error::Error>> {
     for i in 1..11 {
         let url = format!("https://www.linkedin.com/search/results/companies/?keywords=aws&page={:?}", i);
         page.goto(url).await?;
+        sleep(Duration::from_secs(2)).await;
     }
     Ok(())
 }
