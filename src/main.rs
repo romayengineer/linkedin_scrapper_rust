@@ -92,8 +92,8 @@ async fn search_company(browser: &Browser, workers_count: i32, pages_count: i32)
         page_pool.push(Arc::new(Mutex::new(page)));
     }
     
-    let page_pool = Arc::new(Mutex::new(page_pool));
     let url_rx = Arc::new(Mutex::new(url_rx));
+    let page_pool = Arc::new(Mutex::new(page_pool));
     
     let mut workers = JoinSet::new();
     
@@ -102,23 +102,17 @@ async fn search_company(browser: &Browser, workers_count: i32, pages_count: i32)
         let pool = page_pool.clone();
         workers.spawn(async move {
             loop {
-                let page_index = {
-                    let mut rx = rx.lock().await;
-                    rx.recv().await
+                let page_index: i32 = {
+                    match rx.lock().await.recv().await {
+                        Some(u) => u,
+                        None => break,
+                    }
                 };
-                let page_index = match page_index {
-                    Some(u) => u,
-                    None => break,
-                };
-                let page = {
-                    let mut pool = pool.lock().await;
-                    pool.pop().unwrap()
-                };
+                // pull page from poll
+                let page: Arc<Mutex<Page>> = pool.lock().await.pop().unwrap();
                 let _ = goto_search_get_urls(&page, page_index).await;
-                {
-                    let mut pool = pool.lock().await;
-                    pool.push(page);
-                }
+                // push page back to poll
+                pool.lock().await.push(page);
             }
         });
     }
